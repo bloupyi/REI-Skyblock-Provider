@@ -1,0 +1,86 @@
+plugins {
+    id 'net.fabricmc.fabric-loom' version '1.17.21'
+}
+version = '1.6.1+mc26.2'
+group = 'dev.reisb'
+base { archivesName = 'rei-skyblock-provider' }
+repositories {
+    mavenCentral()
+    maven { url = 'https://maven.shedaniel.me/' }
+    maven { url = 'https://maven.architectury.dev/' }
+    maven { url = 'https://maven.azureaaron.net/releases' }
+}
+dependencies {
+    minecraft 'com.mojang:minecraft:26.2'
+    implementation 'net.fabricmc:fabric-loader:0.19.5'
+    implementation 'net.fabricmc.fabric-api:fabric-api:0.161.0+26.2'
+    implementation('me.shedaniel:RoughlyEnoughItems-fabric:26.2.820') { exclude group: 'net.fabricmc.fabric-api' }
+    implementation 'me.shedaniel.cloth:basic-math:0.6.1'
+    implementation('dev.architectury:architectury-fabric:21.0.2') { exclude group: 'net.fabricmc.fabric-api' }
+    include implementation('net.azureaaron:legacy-item-dfu:1.0.4+26.2')
+    testImplementation 'net.fabricmc:fabric-loader-junit:0.19.5'
+}
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(25)
+    withSourcesJar()
+}
+tasks.withType(JavaCompile).configureEach { options.release = 25; options.encoding = 'UTF-8' }
+processResources {
+    inputs.property('version', project.version)
+    filesMatching('fabric.mod.json') { expand(version: project.version) }
+}
+test { useJUnitPlatform() }
+tasks.register('repositoryAudit', Test) {
+    useJUnitPlatform()
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    include '**/RepositoryAuditTest.class'
+    systemProperty 'reisb.repositoryArchive', project.findProperty('repositoryArchive') ?: ''
+    systemProperty 'reisb.hypixelItems', project.findProperty('hypixelItems') ?: ''
+}
+jar { from('LICENSE'); from('licenses') { into 'licenses' }; from('NOTICE.md') }
+tasks.named('sourcesJar') {
+    from('LICENSE')
+    from('NOTICE.md')
+    from('licenses') { into 'licenses' }
+}
+fabricApi {
+    configureTests {
+        createSourceSet = true
+        modId = 'rei_skyblock_provider_test'
+        enableGameTests = false
+        eula = true
+    }
+}
+loom {
+    runs {
+        clientGameTest {
+            runDir 'run/clientGameTest'
+        }
+    }
+}
+tasks.named('runClientGameTest') {
+    doFirst {
+        def archive = project.findProperty('repositoryArchive')
+        if (!archive || !file(archive).isFile()) throw new GradleException('Pass -PrepositoryArchive=<NEU master ZIP>')
+        def configDirectory = file('run/clientGameTest/config')
+        configDirectory.mkdirs()
+        new File(configDirectory, 'rei_skyblock_provider.json').text = '{"onlyOnHypixelSkyblock":false,"autoUpdateRepository":false}'
+        copy {
+            from file(archive)
+            into new File(configDirectory, 'rei_skyblock_provider')
+            rename { 'repository.zip' }
+        }
+    }
+}
+tasks.register('sourceDistribution', Zip) {
+    archiveBaseName = 'rei-skyblock-provider'
+    archiveClassifier = 'project'
+    destinationDirectory = layout.buildDirectory.dir('distributions')
+    from('build.gradle', 'settings.gradle', 'gradle.properties', 'gradlew', 'gradlew.bat',
+            'LICENSE', 'README.md', 'NOTICE.md', '.gitignore')
+    from('gradle') { into 'gradle' }
+    from('src') { into 'src' }
+    from('licenses') { into 'licenses' }
+}
+tasks.named('build') { dependsOn 'sourceDistribution' }

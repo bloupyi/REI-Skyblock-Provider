@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "id": "rei_skyblock_provider_test",
+  "version": "1.0.0",
+  "name": "REI Skyblock Provider Integration Tests",
+  "environment": "client",
+  "mixins": ["reisb-test.mixins.json"],
+  "entrypoints": {
+    "rei_client": ["dev.reisb.CompatibilityFixture"],
+    "rei_common": ["de.hysky.skyblocker.compatibility.rei.SkyblockerREICommonPlugin"],
+    "fabric-client-gametest": ["dev.reisb.ProviderGameTest", "dev.reisb.PlanningGameTest", "dev.reisb.LiveSyncGameTest"]
+  }
+}

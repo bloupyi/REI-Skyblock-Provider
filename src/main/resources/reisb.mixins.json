@@ -1,0 +1,7 @@
+{
+  "required": true,
+  "package": "dev.reisb.mixin.compat",
+  "compatibilityLevel": "JAVA_25",
+  "client": ["ReiPluginManagerMixin", "SkyCoflIdentityMixin"],
+  "injectors": {"defaultRequire": 1}
+}

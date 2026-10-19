@@ -1,0 +1,1 @@
+{"required":true,"package":"dev.reisb.mixin","compatibilityLevel":"JAVA_25","client":["MissingRecipeReloadMixin","PriceContextMixin","TestServerShutdownMixin"],"injectors":{"defaultRequire":1}}
