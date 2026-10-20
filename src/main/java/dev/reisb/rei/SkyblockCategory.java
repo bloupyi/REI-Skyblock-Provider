@@ -44,7 +44,7 @@ public final class SkyblockCategory implements DisplayCategory<SkyblockDisplay> 
     public int getDisplayHeight() { return kind == SkyblockRecipe.Kind.CRAFTING ? 72 : (kind == SkyblockRecipe.Kind.INFO ? 150 : kind == SkyblockRecipe.Kind.NPC || kind == SkyblockRecipe.Kind.KAT ? 140 : 112) + 26; }
 
     @Override
-    public int getDisplayWidth(SkyblockDisplay display) { return kind == SkyblockRecipe.Kind.CRAFTING ? 280 : 200; }
+    public int getDisplayWidth(SkyblockDisplay display) { return 200; }
 
     @Override
     public List<Widget> setupDisplay(SkyblockDisplay display, Rectangle bounds) {
@@ -100,18 +100,18 @@ public final class SkyblockCategory implements DisplayCategory<SkyblockDisplay> 
         int inputY = y + (kind == SkyblockRecipe.Kind.CRAFTING ? 4 : 14);
         for (int i = 0; i < recipe.inputs().size(); i++) {
             Ingredient ingredient = recipe.inputs().get(i);
-            widgets.add(Widgets.createSlot(new Point(x + 12 + (i % columns) * 18, inputY + (i / columns) * 18))
+            widgets.add(Widgets.createSlot(new Point(x + (kind == SkyblockRecipe.Kind.CRAFTING ? 8 : 12) + (i % columns) * 18, inputY + (i / columns) * 18))
                     .entries(List.of(display.entry(ingredient))).markInput());
         }
         int outputY = kind == SkyblockRecipe.Kind.CRAFTING ? inputY + 18 : y + 32;
-        widgets.add(Widgets.createArrow(new Point(x + (kind == SkyblockRecipe.Kind.CRAFTING ? 94 : 100), outputY)));
-        widgets.add(Widgets.createSlot(new Point(x + 146, outputY)).entry(display.entry(recipe.output())).markOutput());
+        widgets.add(Widgets.createArrow(new Point(x + (kind == SkyblockRecipe.Kind.CRAFTING ? 65 : 100), outputY)));
+        widgets.add(Widgets.createSlot(new Point(x + (kind == SkyblockRecipe.Kind.CRAFTING ? 90 : 146), outputY)).entry(display.entry(recipe.output())).markOutput());
         if (recipe.seconds() > 0) label(widgets, x + 96, y + 16, duration(recipe.seconds()), 98);
         if (kind == SkyblockRecipe.Kind.CRAFTING) {
             var station = display.repository().stacks().get(recipe.station());
             String stationName = station == null ? recipe.station() : station.getHoverName().getString();
             String details = stationName + (stationName.isEmpty() || recipe.extra().isEmpty() ? "" : " | ") + recipe.extra();
-            if (!details.isEmpty()) label(widgets, x + 8, y + 60, details, 264);
+            if (!details.isEmpty()) label(widgets, x + 8, y + 60, details, bounds.width - 16);
             addPlanningButtons(widgets, display, bounds);
             return widgets;
         }
@@ -128,12 +128,12 @@ public final class SkyblockCategory implements DisplayCategory<SkyblockDisplay> 
     private static void addPlanningButtons(List<Widget> widgets, SkyblockDisplay display, Rectangle bounds) {
         String id = display.recipe().output().id();
         boolean compact = display.recipe().kind() == SkyblockRecipe.Kind.CRAFTING;
-        widgets.add(Widgets.createButton(new Rectangle(bounds.x + (compact ? 182 : 8), compact ? bounds.y + 7 : bounds.getMaxY() - 23, 89, 18), PlanningScreen.tr("tree"))
+        widgets.add(Widgets.createButton(new Rectangle(bounds.x + (compact ? 110 : 8), compact ? bounds.y + 7 : bounds.getMaxY() - 23, compact ? 82 : 89, 18), PlanningScreen.tr("tree"))
                 .onClick(button -> {
                     var client = Minecraft.getInstance();
                     client.gui.setScreen(new PlanningScreen(client.gui.screen(), id, PlanningScreen.View.TREE));
                 }));
-        widgets.add(Widgets.createButton(new Rectangle(bounds.x + (compact ? 182 : 101), compact ? bounds.y + 29 : bounds.getMaxY() - 23, 89, 18), PlanningScreen.tr("requirements"))
+        widgets.add(Widgets.createButton(new Rectangle(bounds.x + (compact ? 110 : 101), compact ? bounds.y + 29 : bounds.getMaxY() - 23, compact ? 82 : 89, 18), PlanningScreen.tr("requirements"))
                 .onClick(button -> {
                     var client = Minecraft.getInstance();
                     client.gui.setScreen(new PlanningScreen(client.gui.screen(), id, PlanningScreen.View.REQUIREMENTS));
@@ -142,8 +142,10 @@ public final class SkyblockCategory implements DisplayCategory<SkyblockDisplay> 
 
     private static void label(List<Widget> widgets, int x, int y, String text, int width) {
         Component full = LegacyText.parse(text);
-        String visible = Minecraft.getInstance().font.plainSubstrByWidth(full.getString(), width);
-        widgets.add(Widgets.createLabel(new Point(x, y), visible.equals(full.getString()) ? full : Component.literal(visible + "..."))
+        var font = Minecraft.getInstance().font;
+        boolean truncated = font.width(full) > width;
+        String visible = truncated ? font.plainSubstrByWidth(full.getString(), Math.max(0, width - font.width("..."))) : full.getString();
+        widgets.add(Widgets.createLabel(new Point(x, y), truncated ? Component.literal(visible + "...") : full)
                 .leftAligned().tooltip(full));
     }
 

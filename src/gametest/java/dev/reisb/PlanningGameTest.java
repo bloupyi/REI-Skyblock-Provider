@@ -187,6 +187,17 @@ public final class PlanningGameTest implements FabricClientGameTest {
             require(client.gui.screen() instanceof me.shedaniel.rei.impl.client.gui.screen.DefaultDisplayViewingScreen screen
                     && screen.getCurrentDisplayed().size() >= 2, "Fewer than two crafts fit on a page: " + client.gui.screen().getClass().getName() + " / " + client.gui.screen().height + " / " + multiple.getKey());
         });
+        context.runOnClient(client -> {
+            var screen = (me.shedaniel.rei.impl.client.gui.screen.DefaultDisplayViewingScreen) client.gui.screen();
+            var frame = screen.getBounds();
+            var recipes = screen.children().stream()
+                    .filter(widget -> widget instanceof me.shedaniel.rei.impl.client.gui.widget.DisplayCompositeWidget)
+                    .map(widget -> ((me.shedaniel.rei.impl.client.gui.widget.DisplayCompositeWidget) widget).getBounds()).toList();
+            require(recipes.size() >= 2, "Fewer than two recipe panels are visible");
+            for (var recipe : recipes) {
+                require(recipe.x >= frame.x && recipe.getMaxX() <= frame.getMaxX(), "Recipe panel exceeds the REI frame horizontally");
+            }
+        });
         context.takeScreenshot("planning-two-crafts");
         context.runOnClient(client -> {
             require(me.shedaniel.rei.api.client.view.ViewSearchBuilder.builder()
