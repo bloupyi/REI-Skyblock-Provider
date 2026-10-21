@@ -19,12 +19,20 @@ import net.minecraft.world.item.component.TooltipDisplay;
 import org.slf4j.Logger;
 
 public final class ItemStackFactory {
+    private static final class Registries {
+        private static final HolderLookup.Provider LOOKUP = VanillaRegistries.createLookup();
+    }
     private final HolderLookup.Provider lookup;
     private final Logger logger;
 
     public ItemStackFactory(Logger logger) {
-        this.lookup = VanillaRegistries.createLookup();
+        this.lookup = Registries.LOOKUP;
         this.logger = logger;
+    }
+
+    public static ItemStack forRegistry(ItemStack stack, HolderLookup.Provider registry) {
+        var encoded = ItemStack.CODEC.encodeStart(Registries.LOOKUP.createSerializationContext(NbtOps.INSTANCE), stack).getOrThrow();
+        return ItemStack.CODEC.parse(registry.createSerializationContext(NbtOps.INSTANCE), encoded).getOrThrow();
     }
 
     public ItemStack create(SkyblockItem item) {

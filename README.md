@@ -19,7 +19,7 @@ chmod +x gradlew
 ./gradlew build
 ```
 
-Install `build/libs/rei-skyblock-provider-1.6.2+mc26.2.jar`. The `-sources` JAR contains source code and should not be installed as a mod. A project archive is generated in `build/distributions/`.
+Install `build/libs/rei-skyblock-provider-1.6.3+mc26.2.jar`. The `-sources` JAR contains source code and should not be installed as a mod. A project archive is generated in `build/distributions/`.
 
 The standard build runs unit tests. It requires no existing Minecraft installation, local NEU archive, or API key.
 

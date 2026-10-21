@@ -43,6 +43,29 @@ public class ItemConversionTest {
     }
 
     @Test
+    void virtualEnchantmentsRebindToTheConnectedRegistryWithoutChangingTheItem() {
+        var item = new dev.reisb.data.SkyblockItem("DIVER_BOOTS", "minecraft:leather_boots", 0,
+                "{ench:[{id:8s,lvl:3s}],ExtraAttributes:{id:\"DIVER_BOOTS\",enchantments:{depth_strider:3}}}",
+                "Diver's Boots", java.util.List.of("LEGENDARY BOOTS"), java.util.List.of());
+        var source = new ItemStackFactory(LoggerFactory.getLogger("test")).create(item, true);
+        var original = source.copy();
+        var registry = net.minecraft.data.registries.VanillaRegistries.createLookup();
+        var ops = registry.createSerializationContext(net.minecraft.nbt.NbtOps.INSTANCE);
+        assertFalse(source.getOrDefault(DataComponents.ENCHANTMENTS, net.minecraft.world.item.enchantment.ItemEnchantments.EMPTY).isEmpty());
+        assertTrue(net.minecraft.world.item.ItemStack.CODEC.encodeStart(ops, source).error().isPresent());
+        var rebound = ItemStackFactory.forRegistry(source.copyWithCount(2), registry);
+        assertTrue(net.minecraft.world.item.ItemStack.CODEC.encodeStart(ops, rebound).isSuccess());
+        assertEquals(2, rebound.getCount());
+        assertEquals(source.get(DataComponents.CUSTOM_DATA), rebound.get(DataComponents.CUSTOM_DATA));
+        assertEquals(source.get(DataComponents.LORE), rebound.get(DataComponents.LORE));
+        assertEquals(source.getHoverName().getString(), rebound.getHoverName().getString());
+        var depthStrider = registry.lookupOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT)
+                .getOrThrow(net.minecraft.world.item.enchantment.Enchantments.DEPTH_STRIDER);
+        assertEquals(3, rebound.get(DataComponents.ENCHANTMENTS).getLevel(depthStrider));
+        assertTrue(net.minecraft.world.item.ItemStack.matches(original, source));
+    }
+
+    @Test
     void officialMetadataKeepsGameLoreAndModernSkyblockAttributes() {
         var item = new dev.reisb.data.SkyblockItem("TEST", "minecraft:bow", 0,
                 "{ExtraAttributes:{id:\"TEST\",enchantments:{power:7},modifier:\"hasty\",dungeon_item_level:5},Unbreakable:1b,ItemModel:\"minecraft:bow\"}",

@@ -162,14 +162,20 @@ public final class ProviderGameTest implements FabricClientGameTest {
     }
 
     private static void verifyVirtualPrices(ClientGameTestContext context) {
-        var stack = context.computeOnClient(client -> ReiSkyblockProvider.repository().stacks().get("TERMINATOR"));
+        var stack = context.computeOnClient(client -> ReiSkyblockProvider.repository().stacks().get("DIVER_BOOTS"));
         var variant = stack.copyWithCount(2);
         context.runOnClient(client -> {
             CompatibilityFixture.priceContext = true;
             net.fabricmc.fabric.api.client.item.v1.ItemTooltipCallback.EVENT.register((item, tooltipContext, flags, lines) -> {
-                var data = com.coflnet.CoflModClient.getMappedTooltipData(com.coflnet.CoflModClient.getIdFromStack(item));
+                String id = com.coflnet.CoflModClient.getIdFromStack(item);
+                var data = com.coflnet.CoflModClient.knownIds.containsKey(id)
+                        ? com.coflnet.CoflModClient.getMappedTooltipData(id) : null;
                 if (data != null) for (var line : data) lines.add(net.minecraft.network.chat.Component.literal(line.value()));
             });
+            require(client.player.getInventory().getNonEquipmentItems().stream().noneMatch(item -> SkyblockIds.of(item).equals("DIVER_BOOTS")),
+                    "Virtual item was already in the player inventory");
+            require(ItemStack.CODEC.encodeStart(client.player.registryAccess().createSerializationContext(net.minecraft.nbt.NbtOps.INSTANCE), stack)
+                    .error().isPresent(), "Price regression fixture does not reproduce the disconnected enchantment registry");
             var first = com.coflnet.CoflModClient.getIdFromStack(stack);
             require(first.equals(dev.reisb.compat.SkyCoflCompatibility.key(stack)), "SkyCofl virtual identity mixin did not apply");
             require(!first.equals(com.coflnet.CoflModClient.getIdFromStack(variant)), "Stack counts share a price key");
@@ -195,6 +201,9 @@ public final class ProviderGameTest implements FabricClientGameTest {
                     .anyMatch(entry -> entry.getAsText().getString().contains("123 coins")), "Price missing from real REI tooltip");
             for (int i = 0; i < 100; i++) dev.reisb.compat.SkyCoflCompatibility.observe(stack, false);
             require(com.coflnet.CoflModClient.requests.get() == 1, "Repeated hovering flooded price requests");
+            com.coflnet.CoflModClient.knownIds.clear();
+            dev.reisb.compat.SkyCoflCompatibility.observe(stack, false);
+            require(com.coflnet.CoflModClient.knownIds.containsKey(id), "Cached price did not restore SkyCofl tooltip eligibility");
             CoflCore.handlers.DescriptionHandler.tooltipItemIdMap.clear();
             com.coflnet.CoflModClient.knownIds.clear();
             dev.reisb.compat.SkyCoflCompatibility.observe(stack, false);
@@ -210,15 +219,32 @@ public final class ProviderGameTest implements FabricClientGameTest {
             require(com.coflnet.CoflModClient.requests.get() == 2, "Recipe ingredient price request missing");
         });
         context.waitTicks(25);
-        context.runOnClient(client -> com.coflnet.CoflModClient.failRequest = true);
+        context.runOnClient(client -> {
+            com.coflnet.CoflModClient.failCapture = true;
+            int before = com.coflnet.CoflModClient.captures.get();
+            for (int i = 0; i < 100; i++) dev.reisb.compat.SkyCoflCompatibility.observe(stack.copyWithCount(5), false);
+            require(com.coflnet.CoflModClient.captures.get() == before + 1, "Capture failure did not throttle repeated attempts");
+            com.coflnet.CoflModClient.failCapture = false;
+        });
+        context.waitTicks(25);
+        context.waitFor(client -> {
+            var next = stack.copyWithCount(6);
+            EntryStacks.of(next).getTooltip(me.shedaniel.rei.api.client.gui.widgets.TooltipContext.of(
+                    net.minecraft.world.item.Item.TooltipContext.of(client.level)));
+            return com.coflnet.CoflModClient.getMappedTooltipData(com.coflnet.CoflModClient.getIdFromStack(next)) != null;
+        }, 2000);
+        context.runOnClient(client -> {
+            require(com.coflnet.CoflModClient.requests.get() == 3, "One bad item disabled later virtual price requests");
+            com.coflnet.CoflModClient.failRequest = true;
+        });
         context.waitFor(client -> {
             dev.reisb.compat.SkyCoflCompatibility.observe(stack.copyWithCount(3), false);
-            return com.coflnet.CoflModClient.requests.get() == 3;
+            return com.coflnet.CoflModClient.requests.get() == 4;
         }, 2000);
         context.waitTicks(25);
         context.runOnClient(client -> {
             for (int i = 0; i < 100; i++) dev.reisb.compat.SkyCoflCompatibility.observe(stack.copyWithCount(4), false);
-            require(com.coflnet.CoflModClient.requests.get() == 3, "Price service failure did not impose a cooldown");
+            require(com.coflnet.CoflModClient.requests.get() == 4, "Price service failure did not impose a cooldown");
             com.coflnet.CoflModClient.failRequest = false;
             CompatibilityFixture.priceContext = false;
         });

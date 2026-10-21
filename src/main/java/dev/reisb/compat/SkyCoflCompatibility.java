@@ -15,7 +15,7 @@ import net.minecraft.world.item.ItemStack;
 
 public final class SkyCoflCompatibility {
     private record Api(Method capture, Method fetch, Method identify, Method mapped, Method changed,
-                       Field cache, Field known) {}
+                       Field cache, Field known, Method containsKnown) {}
     private record Cached(long time, Object description) {}
     private static final Map<String, Long> requested = new LinkedHashMap<>();
     private static final Map<String, Cached> prices = new LinkedHashMap<>();
@@ -41,6 +41,7 @@ public final class SkyCoflCompatibility {
             requested.clear();
             prices.clear();
             nextRequest = 0;
+            running = false;
         }
         if (!initialized) initialize();
         if (api == null) return;
@@ -48,30 +49,32 @@ public final class SkyCoflCompatibility {
         Api bridge = api;
         try {
             String id = (String) bridge.identify.invoke(null, stack);
-            boolean cached = bridge.mapped.invoke(null, id) != null;
+            Object mapped = bridge.mapped.invoke(null, id);
+            boolean cached = mapped != null && Array.getLength(mapped) > 0;
             Cached price = prices.get(id);
             if (price != null && now - price.time < java.time.Duration.ofSeconds(60).toNanos()) {
-                if (!cached) publish(bridge, id, price.description);
+                if (!cached || !(boolean) bridge.containsKnown.invoke(bridge.known.get(null), id)) publish(bridge, id, price.description);
                 return;
             }
             if (running || now < nextRequest) return;
             long previous = requested.getOrDefault(id, 0L);
             if (previous != 0 && now - previous < java.time.Duration.ofSeconds(cached ? 60 : 15).toNanos()) return;
             var items = NonNullList.<ItemStack>create();
-            items.add(stack.copy());
-            Object request = bridge.capture.invoke(null, "REI SkyBlock", items);
-            var origin = client.getConnection();
             requested.put(id, now);
             if (requested.size() > 512) requested.remove(requested.keySet().iterator().next());
             nextRequest = now + java.time.Duration.ofSeconds(1).toNanos();
+            items.add(dev.reisb.item.ItemStackFactory.forRegistry(stack, client.player.registryAccess()));
+            Object request = bridge.capture.invoke(null, "REI SkyBlock", items);
+            var origin = client.getConnection();
             running = true;
             CompletableFuture.supplyAsync(() -> {
                 try { return bridge.fetch.invoke(request); }
                 catch (ReflectiveOperationException error) { throw new java.util.concurrent.CompletionException(error); }
             }, runnable -> Thread.ofVirtual().name("reisb-cofl-prices").start(runnable)).whenComplete((response, error) ->
                     client.execute(() -> {
+                        if (origin != client.getConnection()) return;
                         running = false;
-                        if (origin != client.getConnection() || !SkyblockDetector.isSkyblock(client)) return;
+                        if (!SkyblockDetector.isSkyblock(client)) return;
                         if (error != null) {
                             nextRequest = System.nanoTime() + java.time.Duration.ofSeconds(15).toNanos();
                             ReiSkyblockProvider.LOGGER.debug("SkyCofl price request failed", error);
@@ -80,13 +83,15 @@ public final class SkyCoflCompatibility {
                         try {
                             if (response == null || Array.getLength(response) < 1) return;
                             Object description = Array.get(response, 0);
-                            if (description == null) return;
+                            if (description == null || Array.getLength(description) == 0) return;
                             prices.put(id, new Cached(System.nanoTime(), description));
                             if (prices.size() > 512) prices.remove(prices.keySet().iterator().next());
                             publish(bridge, id, description);
                         } catch (ReflectiveOperationException | RuntimeException failure) { disable(failure); }
                     }));
-        } catch (ReflectiveOperationException | RuntimeException error) { disable(error); }
+        } catch (java.lang.reflect.InvocationTargetException | RuntimeException error) {
+            ReiSkyblockProvider.LOGGER.debug("SkyCofl price request could not capture item {}", SkyblockIds.of(stack), error);
+        } catch (ReflectiveOperationException error) { disable(error); }
     }
 
     private static void publish(Api bridge, String id, Object description) throws ReflectiveOperationException {
@@ -111,7 +116,7 @@ public final class SkyCoflCompatibility {
                     request.getMethod("fetch"), client.getMethod("getIdFromStack", ItemStack.class),
                     client.getMethod("getMappedTooltipData", String.class),
                     client.getMethod("onDescriptionsApplied", String.class), handler.getField("tooltipItemIdMap"),
-                    client.getField("knownIds"));
+                    client.getField("knownIds"), client.getField("knownIds").getType().getMethod("containsKey", Object.class));
             ReiSkyblockProvider.LOGGER.info("SkyCofl virtual item price bridge enabled");
         } catch (ClassNotFoundException absent) {
             api = null;
