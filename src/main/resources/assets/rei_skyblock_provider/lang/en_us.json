@@ -66,5 +66,15 @@
   "planning.rei_skyblock_provider.api_limited": "rate limited",
   "planning.rei_skyblock_provider.api_error": "unavailable, retry scheduled",
   "planning.rei_skyblock_provider.api_disabled": "disabled",
-  "planning.rei_skyblock_provider.api_session_auth": "Minecraft session authentication failed, retry scheduled"
+  "planning.rei_skyblock_provider.api_session_auth": "Minecraft session authentication failed, retry scheduled",
+  "pricing.rei_skyblock_provider.header": "§8REI market prices",
+  "pricing.rei_skyblock_provider.lowest_bin": "§7Lowest BIN: §6%s",
+  "pricing.rei_skyblock_provider.bazaar_buy": "§7Bazaar instant buy: §6%s",
+  "pricing.rei_skyblock_provider.bazaar_sell": "§7Bazaar instant sell: §6%s",
+  "pricing.rei_skyblock_provider.total": "§8Total ×%s: %s",
+  "pricing.rei_skyblock_provider.pet_bin": "§7Lowest BIN [Lvl %s]: §6%s",
+  "pricing.rei_skyblock_provider.base_item": "§8Market baseline; upgrades are not valued.",
+  "pricing.rei_skyblock_provider.loading": "§8REI prices: loading…",
+  "pricing.rei_skyblock_provider.unavailable": "§8REI prices: unavailable; retry scheduled.",
+  "pricing.rei_skyblock_provider.no_listing": "§8REI prices: no current market listing."
 }

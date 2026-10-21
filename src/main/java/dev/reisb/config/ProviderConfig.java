@@ -25,6 +25,7 @@ public final class ProviderConfig {
     public boolean notifyWhenItemsUpdated = true;
     public boolean enableAutomaticReiRefresh = true;
     public boolean enableProfileApi = true;
+    public boolean enableMarketPrices = true;
     public String profileApiUrl = "https://ursa.notenoughupdates.org/v1/hypixel/v2/profiles/{uuid}";
     public String profileApiAuthHeader = "";
     public boolean debugLogging = false;

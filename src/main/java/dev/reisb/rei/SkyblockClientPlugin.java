@@ -29,8 +29,12 @@ public final class SkyblockClientPlugin implements REIClientPlugin {
                     @Override
                     public me.shedaniel.rei.api.client.gui.widgets.Tooltip getTooltip(EntryStack<ItemStack> stack,
                             me.shedaniel.rei.api.client.gui.widgets.TooltipContext context) {
-                        dev.reisb.compat.SkyCoflCompatibility.observe(stack.getValue(), context.isSearch());
+                        boolean marketPrices = ReiSkyblockProvider.config().enableMarketPrices
+                                && SkyblockIds.owned(stack.getValue()) && ReiSkyblockProvider.active();
+                        if (marketPrices && !context.isSearch()) dev.reisb.pricing.MarketPrices.request();
+                        if (!marketPrices) dev.reisb.compat.SkyCoflCompatibility.observe(stack.getValue(), context.isSearch());
                         var tooltip = super.getTooltip(stack, context);
+                        if (tooltip != null && marketPrices && !context.isSearch()) dev.reisb.pricing.MarketPrices.append(stack.getValue(), tooltip);
                         if (tooltip != null && context.isSearch() && SkyblockIds.owned(stack.getValue())) {
                             tooltip.add(net.minecraft.network.chat.Component.literal(SkyblockIds.of(stack.getValue())));
                         }

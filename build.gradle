@@ -30,6 +30,14 @@ processResources {
     filesMatching('fabric.mod.json') { expand(version: project.version) }
 }
 test { useJUnitPlatform() }
+
+tasks.register('marketPriceAudit', Test) {
+    useJUnitPlatform()
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    include '**/MarketPriceServiceTest.class'
+    systemProperty 'reisb.livePrices', 'true'
+}
 tasks.register('repositoryAudit', Test) {
     useJUnitPlatform()
     testClassesDirs = sourceSets.test.output.classesDirs

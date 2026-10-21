@@ -41,7 +41,11 @@ Data downloads in the background. By default, items appear only on Hypixel SkyBl
 
 To add a shopping goal: **Recipe → Craft tree → quantity → Apply → Add to list**. The main inventory and hotbar are counted. Equipped armor, the offhand, Ender Chest, and backpacks are excluded. Unknown stock stays marked as unknown. Sack quantities older than 24 hours are ignored.
 
-Skyblocker's REI providers are filtered to prevent duplicates while keeping its other features available. Optional SkyCofl integration supplies price tooltips for virtual items when supported by the installed version.
+Skyblocker's REI providers are filtered to prevent duplicates while keeping its other features available.
+
+Independent REI market tooltips show lowest BIN prices from [hysky.de](https://hysky.de/api/auctions/lowestbins) and instant buy/sell prices from the [official Hypixel Bazaar API](https://api.hypixel.net/v2/skyblock/bazaar). No SkyCofl installation, inventory observation, username, or API key is required. Shared market snapshots refresh at most once per minute while hovering items. Data older than 15 minutes is not displayed. Bazaar prices use the best available order on each side, before taxes and without estimating large-order slippage. Lowest BIN values are market baselines, not valuations of upgrades. Pet prices are separated by available level and rarity. Unknown prices are never shown as zero.
+
+Set `enableMarketPrices=false` to disable these downloads and tooltips. The older optional SkyCofl bridge is used instead when available; its compatibility depends on the installed SkyCofl version.
 
 ## API and configuration
 
@@ -66,7 +70,7 @@ Caches and observations stay in `config/rei_skyblock_provider/` and should not b
 
 ## Additional tests
 
-Run unit tests alone with `./gradlew test` or `.\gradlew.bat test`.
+Run unit tests alone with `./gradlew test` or `.\gradlew.bat test`. Run `marketPriceAudit` to additionally verify the live public market endpoints; this separate check requires Internet access.
 
 Client tests require a ZIP archive of the [NEU repository](https://github.com/NotEnoughUpdates/NotEnoughUpdates-REPO) and a graphical environment:
 

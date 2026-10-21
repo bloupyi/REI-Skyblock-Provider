@@ -70,6 +70,7 @@ public final class ReiSkyblockProvider implements ClientModInitializer {
                 service.statusLines().forEach(line -> context.getSource().sendFeedback(Component.literal(line)));
                 context.getSource().sendFeedback(Component.literal(dev.reisb.compat.ProviderCompatibility.status()));
                 context.getSource().sendFeedback(Component.literal("Profile API: " + dev.reisb.planning.ProfileApiSync.status()));
+                context.getSource().sendFeedback(Component.literal("Market prices: " + dev.reisb.pricing.MarketPrices.status()));
                 context.getSource().sendFeedback(Component.literal("REI visible: " + repository.stacks().size() + " items, "
                         + repository.source().recipes().size() + " recipes | active=" + active() + " | preparing=" + preparing.get()
                         + " | automatic refresh=" + config.enableAutomaticReiRefresh + " | synchronized=" + SkyblockClientPlugin.isSynchronized()));

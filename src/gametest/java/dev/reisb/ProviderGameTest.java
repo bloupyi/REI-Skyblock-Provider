@@ -123,7 +123,7 @@ public final class ProviderGameTest implements FabricClientGameTest {
             });
             context.waitTicks(10);
             context.takeScreenshot("hyperion-recipe");
-            try { verifyVirtualPrices(context); }
+            try { verifyMarketPrices(context); verifyVirtualPrices(context); }
             catch (Throwable error) { ReiSkyblockProvider.LOGGER.error("Virtual item price integration test failed", error); throw error; }
             context.runOnClient(client -> {
                 var npc = ReiSkyblockProvider.repository().source().recipes().stream().filter(recipe -> recipe.kind() == SkyblockRecipe.Kind.NPC
@@ -161,11 +161,79 @@ public final class ProviderGameTest implements FabricClientGameTest {
         }
     }
 
+    private static void verifyMarketPrices(ClientGameTestContext context) {
+        com.sun.net.httpserver.HttpServer server = null;
+        dev.reisb.pricing.MarketPriceService previous = null;
+        try {
+            server = com.sun.net.httpserver.HttpServer.create(new java.net.InetSocketAddress("127.0.0.1", 0), 0);
+            var requests = new java.util.concurrent.atomic.AtomicInteger();
+            server.createContext("/", exchange -> {
+                requests.incrementAndGet();
+                String json = exchange.getRequestURI().getPath().equals("/bin")
+                        ? "{\"TERMINATOR\":123456789,\"LVL_1_LEGENDARY_ENDER_DRAGON\":10000000,\"LVL_100_LEGENDARY_ENDER_DRAGON\":20000000}"
+                        : "{\"success\":true,\"products\":{\"DIAMOND\":{\"buy_summary\":[{\"amount\":100,\"pricePerUnit\":12.5}],\"sell_summary\":[{\"amount\":100,\"pricePerUnit\":10.5}]},\"ENCHANTMENT_ULTIMATE_WISE_5\":{\"buy_summary\":[{\"amount\":1,\"pricePerUnit\":500000}],\"sell_summary\":[]}}}";
+                byte[] body = json.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+                exchange.sendResponseHeaders(200, body.length);
+                try (var output = exchange.getResponseBody()) { output.write(body); }
+            });
+            server.start();
+            var base = java.net.URI.create("http://127.0.0.1:" + server.getAddress().getPort());
+            var field = dev.reisb.pricing.MarketPrices.class.getDeclaredField("service");
+            field.setAccessible(true);
+            previous = (dev.reisb.pricing.MarketPriceService) field.get(null);
+            var service = new dev.reisb.pricing.MarketPriceService(base.resolve("/bin"), base.resolve("/bazaar"), java.time.Clock.systemUTC());
+            field.set(null, service);
+            context.runOnClient(client -> {
+                ReiSkyblockProvider.config().enableMarketPrices = true;
+                require(client.player.getInventory().getNonEquipmentItems().stream().noneMatch(item -> SkyblockIds.of(item).equals("TERMINATOR")),
+                        "Market test item was already in the inventory");
+                var sidebar = EntryRegistry.getInstance().getEntryStacks()
+                        .filter(entry -> entry.getValue() instanceof ItemStack item && SkyblockIds.owned(item) && SkyblockIds.of(item).equals("TERMINATOR"))
+                        .findFirst().orElseThrow();
+                sidebar.getTooltip(me.shedaniel.rei.api.client.gui.widgets.TooltipContext.of(net.minecraft.world.item.Item.TooltipContext.of(client.level)));
+            });
+            context.waitFor(client -> service.lowestBin().items().containsKey("TERMINATOR") && service.bazaar().items().containsKey("DIAMOND"), 400);
+            context.runOnClient(client -> {
+                var repository = ReiSkyblockProvider.repository();
+                var sidebar = EntryRegistry.getInstance().getEntryStacks()
+                        .filter(entry -> entry.getValue() instanceof ItemStack item && SkyblockIds.owned(item) && SkyblockIds.of(item).equals("TERMINATOR"))
+                        .findFirst().orElseThrow();
+                var tooltipContext = me.shedaniel.rei.api.client.gui.widgets.TooltipContext.of(net.minecraft.world.item.Item.TooltipContext.of(client.level));
+                require(sidebar.getTooltip(tooltipContext).entries().stream().filter(entry -> entry.isText())
+                        .anyMatch(entry -> entry.getAsText().getString().contains("123,456,789")), "Independent LBIN missing from the sidebar tooltip");
+                var recipe = new SkyblockDisplayGenerator().getRecipeFor(EntryStacks.of(repository.stacks().get("TERMINATOR"))).orElseThrow().getFirst();
+                require(recipe.entry(recipe.recipe().output()).getTooltip(tooltipContext).entries().stream().filter(entry -> entry.isText())
+                        .anyMatch(entry -> entry.getAsText().getString().contains("123,456,789")), "Independent LBIN missing from the recipe output");
+                var diamonds = EntryStacks.of(repository.stack(new dev.reisb.data.Ingredient("DIAMOND", 64))).getTooltip(tooltipContext);
+                require(diamonds.entries().stream().filter(entry -> entry.isText()).anyMatch(entry -> entry.getAsText().getString().contains("12.5 coins")), "Instant buy side incorrect");
+                require(diamonds.entries().stream().filter(entry -> entry.isText()).anyMatch(entry -> entry.getAsText().getString().contains("10.5 coins")), "Instant sell side incorrect");
+                require(diamonds.entries().stream().filter(entry -> entry.isText()).anyMatch(entry -> entry.getAsText().getString().contains("800 coins")), "Stack total missing");
+                var book = EntryStacks.of(repository.stacks().get("ULTIMATE_WISE;5")).getTooltip(tooltipContext);
+                require(book.entries().stream().filter(entry -> entry.isText()).anyMatch(entry -> entry.getAsText().getString().contains("500,000 coins")), "Enchantment Bazaar ID did not resolve");
+                for (int i = 0; i < 100; i++) sidebar.getTooltip(tooltipContext);
+                require(requests.get() == 2, "Hovering triggered repeated market downloads");
+                require(com.coflnet.CoflModClient.requests.get() == 0, "Independent prices still depend on SkyCofl requests");
+            });
+            ReiSkyblockProvider.LOGGER.info("Independent market tooltip assertions passed: sidebar, recipe output, Bazaar sides, stack totals, books and no inventory prerequisite");
+        } catch (Exception error) { throw new IllegalStateException(error); }
+        finally {
+            if (server != null) server.stop(0);
+            if (previous != null) {
+                try {
+                    var field = dev.reisb.pricing.MarketPrices.class.getDeclaredField("service");
+                    field.setAccessible(true);
+                    field.set(null, previous);
+                } catch (ReflectiveOperationException error) { throw new IllegalStateException(error); }
+            }
+        }
+    }
+
     private static void verifyVirtualPrices(ClientGameTestContext context) {
         var stack = context.computeOnClient(client -> ReiSkyblockProvider.repository().stacks().get("DIVER_BOOTS"));
         var variant = stack.copyWithCount(2);
         context.runOnClient(client -> {
             CompatibilityFixture.priceContext = true;
+            ReiSkyblockProvider.config().enableMarketPrices = false;
             net.fabricmc.fabric.api.client.item.v1.ItemTooltipCallback.EVENT.register((item, tooltipContext, flags, lines) -> {
                 String id = com.coflnet.CoflModClient.getIdFromStack(item);
                 var data = com.coflnet.CoflModClient.knownIds.containsKey(id)
@@ -246,6 +314,7 @@ public final class ProviderGameTest implements FabricClientGameTest {
             for (int i = 0; i < 100; i++) dev.reisb.compat.SkyCoflCompatibility.observe(stack.copyWithCount(4), false);
             require(com.coflnet.CoflModClient.requests.get() == 4, "Price service failure did not impose a cooldown");
             com.coflnet.CoflModClient.failRequest = false;
+            ReiSkyblockProvider.config().enableMarketPrices = true;
             CompatibilityFixture.priceContext = false;
         });
     }

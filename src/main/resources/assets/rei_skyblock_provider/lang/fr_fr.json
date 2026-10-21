@@ -66,5 +66,15 @@
   "planning.rei_skyblock_provider.api_limited": "limite atteinte",
   "planning.rei_skyblock_provider.api_error": "indisponible, réessai prévu",
   "planning.rei_skyblock_provider.api_disabled": "désactivée",
-  "planning.rei_skyblock_provider.api_session_auth": "session Minecraft non authentifiée, réessai prévu"
+  "planning.rei_skyblock_provider.api_session_auth": "session Minecraft non authentifiée, réessai prévu",
+  "pricing.rei_skyblock_provider.header": "§8Prix du marché REI",
+  "pricing.rei_skyblock_provider.lowest_bin": "§7BIN le plus bas : §6%s",
+  "pricing.rei_skyblock_provider.bazaar_buy": "§7Bazaar achat instantané : §6%s",
+  "pricing.rei_skyblock_provider.bazaar_sell": "§7Bazaar vente instantanée : §6%s",
+  "pricing.rei_skyblock_provider.total": "§8Total ×%s : %s",
+  "pricing.rei_skyblock_provider.pet_bin": "§7BIN le plus bas [Niv. %s] : §6%s",
+  "pricing.rei_skyblock_provider.base_item": "§8Prix de base du marché, améliorations exclues.",
+  "pricing.rei_skyblock_provider.loading": "§8Prix REI : chargement…",
+  "pricing.rei_skyblock_provider.unavailable": "§8Prix REI indisponibles, nouvelle tentative prévue.",
+  "pricing.rei_skyblock_provider.no_listing": "§8Prix REI : aucune offre actuelle sur le marché."
 }
