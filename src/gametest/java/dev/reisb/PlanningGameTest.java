@@ -156,7 +156,7 @@ public final class PlanningGameTest implements FabricClientGameTest {
                     List.of(me.shedaniel.rei.api.common.util.EntryIngredients.of(Items.DIAMOND_SWORD),
                             me.shedaniel.rei.api.common.util.EntryIngredients.of(Items.ENCHANTED_BOOK)),
                     List.of(me.shedaniel.rei.api.common.util.EntryIngredients.of(Items.DIAMOND_SWORD)), java.util.Optional.empty());
-            require(!registry.isDisplayVisible(skyAnvil), "Vanilla enchanting remained visible for a SkyBlock weapon");
+            require(registry.isDisplayVisible(skyAnvil), "Provider hid another mod's anvil display for a SkyBlock weapon");
             require(registry.isDisplayVisible(vanillaAnvil), "Vanilla enchanting was hidden for a vanilla weapon");
         });
         context.getInput().setCursorPos(0, 0);

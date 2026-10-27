@@ -12,6 +12,9 @@
     "rei_client": ["dev.reisb.rei.SkyblockClientPlugin"],
     "rei_common": ["dev.reisb.rei.SkyblockCommonPlugin"]
   },
+  "suggests": {
+    "skyblocker": "*"
+  },
   "depends": {
     "minecraft": "~26.2",
     "java": ">=25",

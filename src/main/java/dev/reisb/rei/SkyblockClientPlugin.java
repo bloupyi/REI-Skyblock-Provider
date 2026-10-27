@@ -21,6 +21,8 @@ public final class SkyblockClientPlugin implements REIClientPlugin {
     private static net.minecraft.client.multiplayer.ClientPacketListener connection;
     private static long joinedAt;
     private static boolean initializationRequested;
+    private static volatile Boolean appliedIsolation;
+    private static boolean stagedIsolation;
 
     @Override
     public void registerEntryRenderers(me.shedaniel.rei.api.client.entry.renderer.EntryRendererRegistry registry) {
@@ -50,20 +52,11 @@ public final class SkyblockClientPlugin implements REIClientPlugin {
 
     @Override
     public void registerDisplays(DisplayRegistry registry) {
-        registry.registerVisibilityPredicate((category, display) -> {
-            if (ReiSkyblockProvider.active()
-                    && display.getCategoryIdentifier().equals(me.shedaniel.rei.plugin.common.BuiltinPlugin.ANVIL)) {
-                var inputs = display.getInputEntries().stream().flatMap(java.util.Collection::stream)
-                        .map(EntryStack::getValue).filter(ItemStack.class::isInstance).map(ItemStack.class::cast).toList();
-                if (inputs.stream().anyMatch(stack -> stack.is(net.minecraft.world.item.Items.ENCHANTED_BOOK))
-                        && inputs.stream().anyMatch(stack -> !SkyblockIds.of(stack).isEmpty())) {
-                    return dev.architectury.event.EventResult.interruptFalse();
-                }
-            }
-            return dev.architectury.event.EventResult.pass();
-        });
         if (registry.getGlobalDisplayGenerators().stream().noneMatch(SkyblockDisplayGenerator.class::isInstance)) {
             registry.registerGlobalDisplayGenerator(new SkyblockDisplayGenerator());
+        }
+        if (registry.getGlobalDisplayGenerators().stream().noneMatch(SkyblockFallbackGenerator.class::isInstance)) {
+            registry.registerGlobalDisplayGenerator(new SkyblockFallbackGenerator());
         }
     }
 
@@ -73,11 +66,19 @@ public final class SkyblockClientPlugin implements REIClientPlugin {
     }
 
     @Override
-    public void preStage(PluginManager<REIClientPlugin> manager, ReloadStage stage) { ready = false; }
+    public void preStage(PluginManager<REIClientPlugin> manager, ReloadStage stage) {
+        ready = false;
+        if (stage == ReloadStage.START) stagedIsolation = dev.reisb.compat.SkyblockerReiIsolation.requested();
+    }
 
     @Override
     public void postStage(PluginManager<REIClientPlugin> manager, ReloadStage stage) {
-        if (stage == ReloadStage.END) { ready = true; applied = -1; }
+        if (stage == ReloadStage.END) {
+            ready = true;
+            applied = -1;
+            appliedIsolation = stagedIsolation;
+            ReiDiagnostics.registries();
+        }
     }
 
     @Override
@@ -100,6 +101,13 @@ public final class SkyblockClientPlugin implements REIClientPlugin {
             retryAfter = 0;
         }
         if (client.level == null || client.getConnection() == null) return;
+        if (ready && appliedIsolation != null && appliedIsolation != dev.reisb.compat.SkyblockerReiIsolation.requested()
+                && !PluginManager.areAnyReloading()) {
+            ready = false;
+            ReiSkyblockProvider.LOGGER.info("Reloading REI to apply Skyblocker REI isolation={}", dev.reisb.compat.SkyblockerReiIsolation.requested());
+            me.shedaniel.rei.RoughlyEnoughItemsCoreClient.reloadPlugins(null, null);
+            return;
+        }
         if (!ready && !initializationRequested && !PluginManager.areAnyReloading()
                 && System.nanoTime() - joinedAt >= java.time.Duration.ofSeconds(5).toNanos()) {
             initializationRequested = true;
@@ -130,5 +138,8 @@ public final class SkyblockClientPlugin implements REIClientPlugin {
         }
     }
 
-    public static boolean isSynchronized() { return ready && applied == ReiSkyblockProvider.revision(); }
+    public static boolean isSynchronized() {
+        return ready && applied == ReiSkyblockProvider.revision() && appliedIsolation != null
+                && appliedIsolation == dev.reisb.compat.SkyblockerReiIsolation.requested();
+    }
 }

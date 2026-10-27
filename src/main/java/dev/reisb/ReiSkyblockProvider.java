@@ -68,7 +68,7 @@ public final class ReiSkyblockProvider implements ClientModInitializer {
             }));
             dispatcher.register(ClientCommands.literal("reisbstatus").executes(context -> {
                 service.statusLines().forEach(line -> context.getSource().sendFeedback(Component.literal(line)));
-                context.getSource().sendFeedback(Component.literal(dev.reisb.compat.ProviderCompatibility.status()));
+                context.getSource().sendFeedback(Component.literal(dev.reisb.rei.ReiDiagnostics.status()));
                 context.getSource().sendFeedback(Component.literal("Profile API: " + dev.reisb.planning.ProfileApiSync.status()));
                 context.getSource().sendFeedback(Component.literal("Market prices: " + dev.reisb.pricing.MarketPrices.status()));
                 context.getSource().sendFeedback(Component.literal("REI visible: " + repository.stacks().size() + " items, "
@@ -88,6 +88,12 @@ public final class ReiSkyblockProvider implements ClientModInitializer {
                 context.getSource().sendFeedback(Component.literal("REI SkyBlock: remote check requested; API backoff limits still apply. Use /reisbstatus for progress."));
                 return 1;
             }));
+            dispatcher.register(ClientCommands.literal("reisbdebug").then(ClientCommands.argument("item", com.mojang.brigadier.arguments.StringArgumentType.word())
+                    .executes(context -> {
+                        dev.reisb.rei.ReiDiagnostics.inspect(com.mojang.brigadier.arguments.StringArgumentType.getString(context, "item"));
+                        context.getSource().sendFeedback(Component.literal("REI diagnostic written to latest.log"));
+                        return 1;
+                    })));
         });
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             var screen = requestedScreen;
@@ -129,6 +135,12 @@ public final class ReiSkyblockProvider implements ClientModInitializer {
     public static PreparedRepository repository() { return repository; }
     public static long revision() { return revision.get(); }
     public static boolean active() { return config.enabled && (!config.onlyOnHypixelSkyblock || skyblock); }
+    public static String loadingStatus() {
+        return "repository=" + (service == null ? "not initialized" : service.status())
+                + ", loading=" + (service != null && service.loading()) + ", preparing=" + preparing.get()
+                + ", pending=" + (pending.get() != null) + ", revision=" + revision()
+                + ", items=" + repository.stacks().size() + ", recipes=" + repository.source().recipes().size();
+    }
     static boolean synchronizing() { return service.loading() || preparing.get() || pending.get() != null; }
 
     public static void reload() {
@@ -160,6 +172,7 @@ public final class ReiSkyblockProvider implements ClientModInitializer {
                     if (publication.force() || config.enableAutomaticReiRefresh || repository == PreparedRepository.EMPTY) {
                         repository = prepared;
                         revision.incrementAndGet();
+                        dev.reisb.rei.ReiDiagnostics.log("Published repository: {}", loadingStatus());
                         if (publication.notifyUpdate() && publication.metadata().changes().changed()) {
                             notification = "REI SkyBlock updated: " + publication.metadata().changes().summary();
                         }

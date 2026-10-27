@@ -32,8 +32,10 @@ public final class ProviderGameTest implements FabricClientGameTest {
             context.runOnClient(client -> {
                 require(RecipeReloadSuppression.recovered, "Missing recipe reload was not recovered");
                 require(CompatibilityFixture.retained, "Unrelated plugin in mixed provider was removed");
-                require(dev.reisb.compat.ProviderCompatibility.status().contains("SkyblockerREIClientPlugin")
-                        && dev.reisb.compat.ProviderCompatibility.status().contains("SkyblockerREICommonPlugin"), "Competing plugins were not filtered");
+                require(de.hysky.skyblocker.compatibility.rei.SkyblockerREIClientPlugin.registered
+                        != dev.reisb.compat.SkyblockerReiIsolation.requested(), "Unexpected Skyblocker client isolation state");
+                require(de.hysky.skyblocker.compatibility.rei.SkyblockerREICommonPlugin.registered
+                        != dev.reisb.compat.SkyblockerReiIsolation.requested(), "Unexpected Skyblocker common isolation state");
                 for (var kind : SkyblockRecipe.Kind.values()) require(CategoryRegistry.getInstance().tryGet(SkyblockDisplay.category(kind)).isPresent(), "Missing category: " + kind);
                 var registry = EntryRegistry.getInstance();
                 require(registry.getEntryStacks().anyMatch(entry -> entry.getValue() instanceof ItemStack stack
@@ -123,6 +125,7 @@ public final class ProviderGameTest implements FabricClientGameTest {
             });
             context.waitTicks(10);
             context.takeScreenshot("hyperion-recipe");
+            CoexistenceAssertions.run(context);
             try { verifyMarketPrices(context); verifyVirtualPrices(context); }
             catch (Throwable error) { ReiSkyblockProvider.LOGGER.error("Virtual item price integration test failed", error); throw error; }
             context.runOnClient(client -> {

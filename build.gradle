@@ -1,7 +1,7 @@
 plugins {
     id 'net.fabricmc.fabric-loom' version '1.17.21'
 }
-version = '1.6.3+mc26.2'
+version = '1.6.4+mc26.2'
 group = 'dev.reisb'
 base { archivesName = 'rei-skyblock-provider' }
 repositories {
@@ -46,11 +46,19 @@ tasks.register('repositoryAudit', Test) {
     systemProperty 'reisb.repositoryArchive', project.findProperty('repositoryArchive') ?: ''
     systemProperty 'reisb.hypixelItems', project.findProperty('hypixelItems') ?: ''
 }
+tasks.register('skyblockerIsolationAudit', Test) {
+    useJUnitPlatform()
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    include '**/SkyblockerBinaryIsolationTest.class'
+    systemProperty 'reisb.skyblockerJar', project.findProperty('skyblockerJar') ?: ''
+}
 jar { from('LICENSE'); from('licenses') { into 'licenses' }; from('NOTICE.md') }
 tasks.named('sourcesJar') {
     from('LICENSE')
     from('NOTICE.md')
     from('licenses') { into 'licenses' }
+    from('docs') { into 'docs' }
 }
 fabricApi {
     configureTests {
@@ -64,6 +72,7 @@ loom {
     runs {
         clientGameTest {
             runDir 'run/clientGameTest'
+            vmArg "-Dreisb.fixture.mode=${project.findProperty('coexistenceMode') ?: 'enabled'}"
         }
     }
 }
@@ -88,7 +97,9 @@ tasks.register('sourceDistribution', Zip) {
     from('build.gradle', 'settings.gradle', 'gradle.properties', 'gradlew', 'gradlew.bat',
             'LICENSE', 'README.md', 'NOTICE.md', '.gitignore')
     from('gradle') { into 'gradle' }
+    from('.github') { into '.github' }
     from('src') { into 'src' }
     from('licenses') { into 'licenses' }
+    from('docs') { into 'docs' }
 }
 tasks.named('build') { dependsOn 'sourceDistribution' }

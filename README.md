@@ -19,7 +19,7 @@ chmod +x gradlew
 ./gradlew build
 ```
 
-Install `build/libs/rei-skyblock-provider-1.6.3+mc26.2.jar`. The `-sources` JAR contains source code and should not be installed as a mod. A project archive is generated in `build/distributions/`.
+Install `build/libs/rei-skyblock-provider-1.6.4+mc26.2.jar`. The `-sources` JAR contains source code and should not be installed as a mod. A project archive is generated in `build/distributions/`.
 
 The standard build runs unit tests. It requires no existing Minecraft installation, local NEU archive, or API key.
 
@@ -41,7 +41,7 @@ Data downloads in the background. By default, items appear only on Hypixel SkyBl
 
 To add a shopping goal: **Recipe → Craft tree → quantity → Apply → Add to list**. The main inventory and hotbar are counted. Equipped armor, the offhand, Ender Chest, and backpacks are excluded. Unknown stock stays marked as unknown. Sack quantities older than 24 hours are ignored.
 
-Skyblocker's REI providers are filtered to prevent duplicates while keeping its other features available.
+Skyblocker is an optional dependency. By default, `disableSkyblockerReiIntegration=true` isolates only its two REI plugins; the rest of Skyblocker remains active. Runtime type inspection avoids a hard dependency or changes to Skyblocker's configuration. Set this option to `false` and use `/reisbreload` to enable coexistence; the provider schedules a full REI reload when the mode changes. Provider categories use the `rei_skyblock_provider` namespace; only identical provider recipes are deduplicated. Recipe searches preserve existing recipes even when item information would suppress REI's wildcard fallback. See [the diagnosis, isolation mode and test matrix](docs/skyblocker-rei-compatibility.md).
 
 Independent REI market tooltips show lowest BIN prices from [hysky.de](https://hysky.de/api/auctions/lowestbins) and instant buy/sell prices from the [official Hypixel Bazaar API](https://api.hypixel.net/v2/skyblock/bazaar). No SkyCofl installation, inventory observation, username, or API key is required. Shared market snapshots refresh at most once per minute while hovering items. Data older than 15 minutes is not displayed. Bazaar prices use the best available order on each side, before taxes and without estimating large-order slippage. Lowest BIN values are market baselines, not valuations of upgrades. Pet prices are separated by available level and rarity. Unknown prices are never shown as zero.
 
@@ -65,6 +65,7 @@ Caches and observations stay in `config/rei_skyblock_provider/` and should not b
 - `/reisbplan ITEM_ID`: open a crafting tree.
 - `/reisbprofilesync`: request profile synchronization, subject to request cooldowns.
 - `/reisbstatus`: show data source, API, and REI status.
+- `/reisbdebug ITEM_ID`: compare generated recipes/usages with REI's final results in `latest.log`. Enable `debugLogging` and use `/reisbreload` for query, comparator, category and generator logs.
 - `/reisbreload`: reread configuration and reload data.
 - `/reisbupdate`: request a remote data check.
 

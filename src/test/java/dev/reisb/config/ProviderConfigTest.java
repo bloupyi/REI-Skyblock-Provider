@@ -20,10 +20,21 @@ public class ProviderConfigTest {
         assertFalse(config.autoUpdateRepository);
         assertTrue(config.checkUpdatesOnStartup);
         assertEquals(30, config.updateIntervalMinutes);
+        assertTrue(config.disableSkyblockerReiIntegration);
         var json = JsonParser.parseString(Files.readString(file)).getAsJsonObject();
         assertTrue(json.has("enableAutomaticReiRefresh"));
+        assertTrue(json.get("disableSkyblockerReiIntegration").getAsBoolean());
         assertEquals("kept", json.get("unknownPreference").getAsString());
         assertFalse(json.get("autoUpdateRepository").getAsBoolean());
+    }
+
+    @Test
+    void explicitCoexistencePreferenceIsPreserved() throws Exception {
+        Path file = directory.resolve("rei_skyblock_provider.json");
+        Files.writeString(file, "{\"disableSkyblockerReiIntegration\":false}");
+        assertFalse(ProviderConfig.load(file, LoggerFactory.getLogger("test")).disableSkyblockerReiIntegration);
+        assertFalse(JsonParser.parseString(Files.readString(file)).getAsJsonObject()
+                .get("disableSkyblockerReiIntegration").getAsBoolean());
     }
 
     @Test

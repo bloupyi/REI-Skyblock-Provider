@@ -17,6 +17,8 @@ public class DisplayIntegrationTest {
     @Test
     void repeatedReiReloadsKeepOneGlobalGenerator() {
         var generators = new ArrayList<DynamicDisplayGenerator<?>>();
+        var foreign = new DynamicDisplayGenerator<me.shedaniel.rei.api.common.display.Display>() {};
+        generators.add(foreign);
         var registry = (DisplayRegistry) Proxy.newProxyInstance(DisplayRegistry.class.getClassLoader(), new Class<?>[]{DisplayRegistry.class},
                 (proxy, method, args) -> switch (method.getName()) {
                     case "getGlobalDisplayGenerators" -> generators;
@@ -24,7 +26,10 @@ public class DisplayIntegrationTest {
                     default -> null;
                 });
         for (int i = 0; i < 5; i++) new SkyblockClientPlugin().registerDisplays(registry);
-        assertEquals(1, generators.size());
+        assertEquals(1, generators.stream().filter(SkyblockDisplayGenerator.class::isInstance).count());
+        assertEquals(1, generators.stream().filter(SkyblockFallbackGenerator.class::isInstance).count());
+        assertEquals(3, generators.size());
+        assertSame(foreign, generators.getFirst());
     }
 
     @Test
