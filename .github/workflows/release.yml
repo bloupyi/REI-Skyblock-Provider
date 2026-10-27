@@ -2,14 +2,22 @@ name: Publish release
 
 on:
   push:
+    branches:
+      - main
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing version tag to publish
+        required: true
+        default: v1.6.4
 
 permissions:
   contents: read
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: publish-release
   cancel-in-progress: false
 
 jobs:
@@ -20,21 +28,59 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Select an unpublished version tag
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REQUESTED_TAG: ${{ inputs.tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          release_tag="$REQUESTED_TAG"
+          if [[ -z "$release_tag" ]]; then
+            if [[ "$GITHUB_REF_TYPE" == tag ]]; then
+              release_tag="$GITHUB_REF_NAME"
+            else
+              release_tag="v$(awk -F\"'\" '/^version = / {sub(/\+mc26.2$/, "", $2); print $2}' build.gradle)"
+            fi
+          fi
+          [[ "$release_tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          if ! git show-ref --verify --quiet "refs/tags/$release_tag"; then
+            echo "No version tag $release_tag exists; skipping publication."
+            exit 0
+          fi
+          if gh release view "$release_tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $release_tag already exists; skipping publication."
+            exit 0
+          fi
+          echo "tag=$release_tag" >> "$GITHUB_OUTPUT"
+          echo 'publish=true' >> "$GITHUB_OUTPUT"
+      - name: Check out the exact release tag
+        if: steps.release.outputs.publish == 'true'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.release.outputs.tag }}
           persist-credentials: false
       - uses: actions/setup-java@v4
+        if: steps.release.outputs.publish == 'true'
         with:
           distribution: temurin
           java-version: '25'
           cache: gradle
       - name: Build and test
+        if: steps.release.outputs.publish == 'true'
         run: ./gradlew --no-daemon build compileGametestJava
       - name: Publish release assets
+        if: steps.release.outputs.publish == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
         shell: bash
         run: |
           set -euo pipefail
-          release_version="${GITHUB_REF_NAME#v}"
+          release_version="${RELEASE_TAG#v}"
           release_notes="docs/releases/${release_version}.md"
           mod_jar="build/libs/rei-skyblock-provider-${release_version}+mc26.2.jar"
           source_jar="build/libs/rei-skyblock-provider-${release_version}+mc26.2-sources.jar"
@@ -43,7 +89,7 @@ jobs:
           test -f "$mod_jar"
           test -f "$source_jar"
           test -f "$project_zip"
-          gh release create "$GITHUB_REF_NAME" "$mod_jar" "$source_jar" "$project_zip" \
+          gh release create "$RELEASE_TAG" "$mod_jar" "$source_jar" "$project_zip" \
             --repo "$GITHUB_REPOSITORY" \
             --verify-tag \
             --title "REI Skyblock Provider ${release_version} (Minecraft 26.2)" \
